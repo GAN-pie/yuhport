@@ -10,6 +10,9 @@ class Portfolio:
     def __init__(self, data: pd.DataFrame) -> None:
         self._data = data
 
+    def get_assets(self) -> List:
+        return self._data['ASSET'].dropna().unique().tolist()
+
     def display_transaction(self, asset: str) -> None:
         """Display all transactions related to the given asset
         Args:
@@ -28,7 +31,7 @@ class Portfolio:
             asset_string = f'{transaction.ASSET:>5s}'
             order_string = f'{transaction.BUY_SELL:>5s}'
             currency_string = f'{transaction.DEBIT_CURRENCY if transaction.BUY_SELL == "BUY" else transaction.CREDIT_CURRENCY:>8s}'
-            quantity_string = f'{int(transaction.QUANTITY):8d}'
+            quantity_string = f'{transaction.QUANTITY:>8.4f}'
             price_string = f'{transaction.PRICE_PER_UNIT:>8.4f}'
             fees_string = f'{transaction.FEES_COMMISSION:>8.4f}'
 
@@ -42,6 +45,44 @@ class Portfolio:
                 fees_string
             ])
             print(formated_string)
+
+    def display_gains(self, asset: Optional[str] = None) -> None:
+        """Display all gains or related to the given asset if specified
+        Args:
+            - asset (str): the asset identifier
+        Return:
+            None
+        """
+
+        header_string: str = '{0:>10s} {1:>10s} {2:>10s}'.format('ASSET', 'GAINS', 'FEES')
+        print(header_string)
+
+        assets: List = [asset] if asset else self.get_assets()
+        for _asset in assets:
+            gains: Dict = self.compute_asset_gains(_asset)
+            for currency, _gains in gains.items():
+                gains_string: str = f'{"-".join([_asset, currency]):>10s} {_gains["total_gains"]:>+10.4f} {_gains["total_fees"]:>10.4f}'
+                print(gains_string)
+
+    def display_holdings(self, asset: Optional[str] = None) -> None:
+        """Display holdings of all assets or only the specified one
+        Args:
+            - asset (str): the asset identifier
+        Return:
+            None
+        """
+
+        header_string: str = '{0:>10s} {1:>10s} {2:>10s} {3:>10s}'.format(
+            'ASSET', 'QUANTITY', 'GAINS', 'FEES')
+        print(header_string)
+
+        assets: List = [asset] if asset else self.get_assets()
+
+        for _asset in assets:
+            gains: Dict = self.compute_asset_gains(_asset)
+            for currency, _gains in gains.items():
+                holdings_string: str = f'{"-".join([_asset, currency]):>10s} {_gains["total_quantity"]:>+10.4f} {_gains["total_gains"]:>10.4f} {_gains["total_fees"]:>10.4f}'
+                print(holdings_string)
 
     def compute_asset_costs(self, asset: str, currency: Optional[str] = None) -> Dict:
         """Compute costs related to the given asset (excluding fees)
@@ -63,6 +104,7 @@ class Portfolio:
         _fees: Dict = {}
         for i, transaction in asset_data.iterrows():
             if not transaction.BUY_SELL == 'BUY':
+                # this if statement has the side effect of ignoring all currency-based trades
                 continue
             curr: str = transaction.DEBIT_CURRENCY
             if not curr in _currencies:
@@ -104,6 +146,7 @@ class Portfolio:
         _fees: Dict = {}
         for i, transaction in asset_data.iterrows():
             if not transaction.BUY_SELL == 'SELL':
+                # this if statement has the side effect of ignoring all currency-based trades
                 continue
             curr: str = transaction.CREDIT_CURRENCY
             if not curr in _currencies:
