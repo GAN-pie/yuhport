@@ -2,8 +2,8 @@
 
 from glob import glob
 from os import path
-from typing import List, Optional
-from datetime import date, datetime 
+from typing import List, Optional, Union
+from datetime import datetime 
 
 import pandas as pd
 
@@ -24,12 +24,16 @@ def read_data_export(folder: str) -> pd.DataFrame:
     data.columns = data.columns.str.replace('/', '_')
     return data
 
+def filter_activity(data: pd.DataFrame, activity: Union[str, List]) -> pd.DataFrame:
+    selected = data['ACTIVITY_TYPE'].isin([activity] if isinstance(activity, str) else activity)
+    return data[selected]
+
 def filter_timerange(data: pd.DataFrame, begin: datetime, end: datetime) -> pd.DataFrame:
     timerange: pd.DataFrame = data[(data['DATE'] >= begin) & (data['DATE'] <= end)]
     return timerange
 
-def filter_asset(data: pd.DataFrame, asset: str, order_type: Optional[str] = None) -> pd.DataFrame:
-    selected = data['ASSET'].isin([asset])
+def filter_asset(data: pd.DataFrame, asset: Union[str, List], order_type: Optional[str] = None) -> pd.DataFrame:
+    selected = data['ASSET'].isin([asset] if isinstance(asset, str) else asset)
     mask = selected
     if order_type:
         mask = data['BUY_SELL'].isin([order_type])

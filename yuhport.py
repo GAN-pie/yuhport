@@ -2,17 +2,23 @@
 # coding: utf-8
 
 from pprint import pprint
-from re import I
+from datetime import datetime
+
 import portoflio
 from utils import read_data_export
 from portoflio import Portfolio
+import utils
 
 
 if __name__ == '__main__':
     data = read_data_export('../patripy/ressources')
+    data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
+
     portoflio = Portfolio(data)
 
-    print('ASSETS', portoflio.get_assets())
+    portoflio.display_transactions()
+
+    #print('ASSETS', portoflio.get_assets())
 
     # portoflio.display_transaction('SOL')
     # costs = portoflio.compute_asset_costs('SOL')

@@ -1,39 +1,45 @@
 #coding: utf-8
 
 from typing import Dict, List, Optional
-from datetime import datetime
 import pandas as pd
 
 import utils
 
+VALID_ACTIVITY = ['INVEST_ORDER_EXECUTED', 'INVEST_RECURRING_ORDER_EXECUTED']
+
 class Portfolio:
     def __init__(self, data: pd.DataFrame) -> None:
-        self._data = data
+        self._data = utils.filter_activity(data, VALID_ACTIVITY)
 
     def get_assets(self) -> List:
         return self._data['ASSET'].dropna().unique().tolist()
 
-    def display_transaction(self, asset: str) -> None:
-        """Display all transactions related to the given asset
+    def display_transactions(self, asset: Optional[str] = None) -> None:
+        """Display all transactions related to the given asset if specified or all assets
         Args:
             - asset (str): asset identifier
         Return:
             None
         """
-        asset_data = utils.filter_asset(self._data, asset)
+        asset_data = utils.filter_asset(self._data, [asset] if asset else self.get_assets())
 
-        header_string = '{0:>10s} {1:>5s} {2:>5s} {3:>8s} {4:>8s} {5:>8s} {6:>8s}'.format(
+        header_string = '{0:>10s} {1:>8s} {2:>5s} {3:>8s} {4:>12s} {5:>10s} {6:>6s}'.format(
             'DATE', 'ASSET', 'ORDER', 'CURRENCY', 'QUANTITY', 'PRICE', 'FEES')
         print(header_string)
 
+
         for _, transaction in asset_data.iterrows():
             date_string = f'{transaction.DATE.strftime("%d/%m/%Y")}' 
-            asset_string = f'{transaction.ASSET:>5s}'
-            order_string = f'{transaction.BUY_SELL:>5s}'
+            asset_string = f'{transaction.ASSET:>8s}'
+            try:
+                order_string = f'{transaction.BUY_SELL:>5s}'
+            except ValueError as err:
+                print(err, transaction)
+                exit()
             currency_string = f'{transaction.DEBIT_CURRENCY if transaction.BUY_SELL == "BUY" else transaction.CREDIT_CURRENCY:>8s}'
-            quantity_string = f'{transaction.QUANTITY:>8.4f}'
-            price_string = f'{transaction.PRICE_PER_UNIT:>8.4f}'
-            fees_string = f'{transaction.FEES_COMMISSION:>8.4f}'
+            quantity_string = f'{transaction.QUANTITY:>10.6f}'
+            price_string = f'{transaction.PRICE_PER_UNIT:>10.4f}'
+            fees_string = f'{transaction.FEES_COMMISSION:>6.2f}'
 
             formated_string = ' '.join([
                 date_string,
@@ -72,7 +78,7 @@ class Portfolio:
             None
         """
 
-        header_string: str = '{0:>10s} {1:>10s} {2:>10s} {3:>10s}'.format(
+        header_string: str = '{0:>10s} {1:>12s} {2:>10s} {3:>10s}'.format(
             'ASSET', 'QUANTITY', 'GAINS', 'FEES')
         print(header_string)
 
@@ -81,7 +87,7 @@ class Portfolio:
         for _asset in assets:
             gains: Dict = self.compute_asset_gains(_asset)
             for currency, _gains in gains.items():
-                holdings_string: str = f'{"-".join([_asset, currency]):>10s} {_gains["total_quantity"]:>+10.4f} {_gains["total_gains"]:>10.4f} {_gains["total_fees"]:>10.4f}'
+                holdings_string: str = f'{"-".join([_asset, currency]):>10s} {_gains["total_quantity"]:>10.6f} {_gains["total_gains"]:>+10.4f} {_gains["total_fees"]:>10.4f}'
                 print(holdings_string)
 
     def compute_asset_costs(self, asset: str, currency: Optional[str] = None) -> Dict:
@@ -161,13 +167,23 @@ class Portfolio:
 
         costs: Dict = self.compute_asset_costs(asset, currency)
 
-        gains: Dict = {}
-        for curr in _currencies:
-            gains[curr] = {
-                'total_gains': _gains[curr] - costs[curr]['total_costs'],
-                'total_quantity': costs[curr]['total_quantity'] - _quantities[curr],
-                'total_fees': _fees[curr] + costs[curr]['total_fees']
+        if not _gains:
+            return {
+                _curr: {
+                    'total_gains': 0.0,
+                    'total_quantity': _costs['total_quantity'],
+                    'total_fees': _costs['total_fees']
+                }
+                for _curr, _costs in costs.items()
             }
-        return gains
+        else:
+            gains: Dict = {}
+            for curr in _currencies:
+                gains[curr] = {
+                    'total_gains': _gains[curr] - costs[curr]['total_costs'],
+                    'total_quantity': costs[curr]['total_quantity'] - _quantities[curr],
+                    'total_fees': _fees[curr] + costs[curr]['total_fees']
+                }
+            return gains
 
 
