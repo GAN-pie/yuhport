@@ -1,11 +1,26 @@
 #coding: utf-8
 
+from pprint import pprint 
+from datetime import datetime
 from typing import Dict, List, Optional
 import pandas as pd
 
 import utils
 
 VALID_ACTIVITY = ['INVEST_ORDER_EXECUTED', 'INVEST_RECURRING_ORDER_EXECUTED']
+CRYPTO_ASSETS = [
+    'SWQ',
+    'ETH',
+    'SOL',
+    'DOT',
+    'XRP',
+    'XBT',
+    'MKR',
+    'AAV',
+    'BNT',
+    'MAT',
+]
+
 
 class Portfolio:
     def __init__(self, data: pd.DataFrame) -> None:
@@ -185,5 +200,55 @@ class Portfolio:
                     'total_fees': _fees[curr] + costs[curr]['total_fees']
                 }
             return gains
+
+    def _compute_disposal_gains_asset(self, asset: str, year: str, currency: Optional[str] = None) -> Dict:
+        data = utils.filter_timerange(
+            self._data,
+            datetime(int(1990), 1, 1),
+            datetime(int(year), 12, 31)
+        )
+        data = utils.filter_asset(data, asset)
+        # print(data)
+
+        currencies: Dict = {}
+
+        sell_transactions = data[data['BUY_SELL'].isin(['SELL'])]
+        for i, transac in sell_transactions.iterrows():
+            print(i, transac)
+            _currency = transac.CREDIT_CURRENCY
+            _raw_sell_price = transac.QUANTITY * transac.PRICE_PER_UNIT
+            _net_sell_price = _raw_sell_price - transac.FEES_COMMISSION
+
+            _asset_data = utils.filter_asset(data, CRYPTO_ASSETS)
+            try:
+                _portfolio_to_date = Portfolio(
+                    _asset_data.iloc[:_asset_data.index.get_loc(i)-1]
+                )
+            except KeyError as err:
+                print('ERROR: KeyError', err)
+                print(utils.filter_asset(data, CRYPTO_ASSETS))
+                exit()
+            _portfolio_to_date.display_transactions()
+
+            # TODO: if asset is crypto compute porfolio value to date
+            _portfolio_value: float
+
+            _cost = _portfolio_to_date.compute_asset_costs(asset)
+            _raw_asset_cost = _cost[_currency]['total_costs']
+            _net_asset_cost = _raw_asset_cost + _cost[_currency]['total_fees']
+
+            _disposal_gain = _net_sell_price - _net_asset_cost
+
+            print(f'Net selling price ({_currency}): {_net_sell_price:>10.4f}')
+            print(f'Net asset cost ({_currency}): {_net_asset_cost:>10.4f}') 
+            print(f'Net disposal gain ({_currency}): {_disposal_gain:>+10.4f}') 
+
+            if not currencies.get(_currency):
+                currencies[_currency] = [_disposal_gain]
+            else:
+                currencies[_currency] += [_disposal_gain]
+
+        return {curr: sum(gains) for curr, gains in currencies.items()}
+
 
 

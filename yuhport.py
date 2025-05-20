@@ -12,11 +12,11 @@ import utils
 
 if __name__ == '__main__':
     data = read_data_export('../patripy/ressources')
-    data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
+    #data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
 
     portoflio = Portfolio(data)
 
-    portoflio.display_transactions()
+    #portoflio.display_transactions()
 
     #print('ASSETS', portoflio.get_assets())
 
@@ -27,5 +27,8 @@ if __name__ == '__main__':
     # pprint(gains)
 
     # portoflio.display_gains()
-    portoflio.display_holdings()
+    #portoflio.display_holdings()
+
+    disposal_gains = portoflio._compute_disposal_gains_asset('SOL', '2024')
+    pprint(disposal_gains)
 
