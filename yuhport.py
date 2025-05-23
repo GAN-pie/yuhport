@@ -14,6 +14,8 @@ if __name__ == '__main__':
     data = read_data_export('../patripy/ressources')
     #data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
 
+    data = utils.filter_asset(data, portoflio.CRYPTO_ASSETS)
+
     portoflio = Portfolio(data)
 
     #portoflio.display_transactions()

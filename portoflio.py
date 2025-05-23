@@ -207,31 +207,27 @@ class Portfolio:
             datetime(int(1990), 1, 1),
             datetime(int(year), 12, 31)
         )
-        data = utils.filter_asset(data, asset)
-        # print(data)
+        asset_data = utils.filter_asset(data, asset)
+        # print(asset_data)
 
         currencies: Dict = {}
 
-        sell_transactions = data[data['BUY_SELL'].isin(['SELL'])]
+        sell_transactions = asset_data[asset_data['BUY_SELL'].isin(['SELL'])]
         for i, transac in sell_transactions.iterrows():
             print(i, transac)
             _currency = transac.CREDIT_CURRENCY
             _raw_sell_price = transac.QUANTITY * transac.PRICE_PER_UNIT
             _net_sell_price = _raw_sell_price - transac.FEES_COMMISSION
 
-            _asset_data = utils.filter_asset(data, CRYPTO_ASSETS)
-            try:
-                _portfolio_to_date = Portfolio(
-                    _asset_data.iloc[:_asset_data.index.get_loc(i)-1]
-                )
-            except KeyError as err:
-                print('ERROR: KeyError', err)
-                print(utils.filter_asset(data, CRYPTO_ASSETS))
-                exit()
+            integer_loc = asset_data.index.get_loc(i)
+            _portfolio_to_date = Portfolio(
+                asset_data.iloc[:integer_loc]
+            )
             _portfolio_to_date.display_transactions()
 
             # TODO: if asset is crypto compute porfolio value to date
-            _portfolio_value: float
+            #_asset_asset_data = utils.filter_asset(asset_data, CRYPTO_ASSETS)
+            #_portfolio_value: float
 
             _cost = _portfolio_to_date.compute_asset_costs(asset)
             _raw_asset_cost = _cost[_currency]['total_costs']
@@ -250,5 +246,71 @@ class Portfolio:
 
         return {curr: sum(gains) for curr, gains in currencies.items()}
 
+
+    def portfolio_cost(self, operation_id: Optional[int] = None) -> float:
+        if operation_id:
+            _portfolio = Portfolio(self._data.iloc[:operation_id])
+            return _portfolio.portfolio_cost()
+        cost = 0.0
+        for _, operation in self._data.iterrows():
+            if operation.BUY_SELL != 'BUY': continue
+            raw_operation_price = operation.PRICE_PER_UNIT * operation.QUANTITY
+            net_operation_price = raw_operation_price + operation.FEES_COMMISSION
+
+            rate = utils.get_conversion_rate(operation.DATE, operation.DEBIT_CURRENCY)
+            cost += net_operation_price * rate
+
+        return cost
+
+    def quantity(self, asset: str) -> int:
+        return 0
+
+    def portfolio_values(self, operation_id: Optional[int] = None, date: Optional[datetime] = None) -> float:
+        date = date if date is None else datetime.today()
+        assert isinstance(date, datetime)
+        if operation_id:
+            _portfolio = Portfolio(self._data.iloc[:operation_id])
+            return _portfolio.portfolio_values(date=date)
+        values = 0.0
+        for asset in self.get_assets():
+            # TODO: group by asset, currency ?
+            asset_qte = self.quantity(asset)
+            market_price = utils.get_market_value(asset, date)
+            rate = utils.get_conversion_rate(date, currency)
+
+            values += market_price * rate * asset_qte
+
+        return values
+
+
+
+
+    def total_disposal_gains(self, year: int) -> float:
+
+        year_data_mask = self._data['DATE'].dt.year == year
+        sell_data_mask = self._data['BUY_SELL'] == 'SELL'
+
+        operations = self._data[year_data_mask and sell_data_mask]
+        raw_disposal_gains = 0.0
+        for i, _ in operations.iterrows():
+            operation_id = self._data.index.get_loc(i)
+            assert isinstance(operation_id, int), f'{operation_id} must be int, not {type(operation_id)}'
+
+            unit_price = self._data.iloc[operation_id].PRICE_PER_UNIT
+            quantity = self._data.iloc[operation_id].QUANTITY
+            fees = self._data.iloc[operation_id].FEES_COMMISSION
+            currency = self._data.iloc[operation_id].CREDIT_CURRENCY
+            date = self._data.iloc[operation_id].DATE
+
+            rate = utils.get_conversion_rate(date, currency)
+
+            selling_price = (unit_price * quantity - fees) * rate
+
+            portfolio_cost = self.portfolio_cost(operation_id)
+            portfolio_value = self.portfolio_value(operation_id, date)
+
+            raw_disposal_gains += selling_price - portfolio_cost * selling_price / portfolio_value
+
+        return raw_disposal_gains
 
 
