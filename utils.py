@@ -44,6 +44,12 @@ def is_multicurrency(data: pd.DataFrame, asset: str) -> bool:
     currency_groups = asset_data.groupby('DEBIT_CURRENCY')
     return len(currency_groups) >= 1
 
+
+
+
+
+
+
 def get_conversion_rate(date: datetime, src_currency: str, dest_currency: Optional[str] = None) -> float:
     return 1.0
 

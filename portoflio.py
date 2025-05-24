@@ -283,6 +283,26 @@ class Portfolio:
         return values
 
 
+    def assets_currencies(self) -> Dict:
+        assets_currencies_map = {_asset: {} for _asset in self._data['ASSET'].dropna().unique().tolist()}
+        for grouping, group_data in self._data.groupby(['ASSET', 'DEBIT_CURRENCY']):
+            assert isinstance(grouping, tuple)
+            _asset, _currency = grouping
+            qte = group_data['QUANTITY'].sum()
+            if not _currency in assets_currencies_map[_asset]:
+                assets_currencies_map[_asset] = {_currency: qte}
+            else:
+                assets_currencies_map[_asset][_currency] += qte
+        for grouping, group_data in self._data.groupby(['ASSET', 'CREDIT_CURRENCY']):
+            assert isinstance(grouping, tuple)
+            _asset, _currency = grouping
+            qte = group_data['QUANTITY'].sum()
+            if not _currency in assets_currencies_map[_asset]:
+                assets_currencies_map[_asset] = {_currency: -qte}
+            else:
+                assets_currencies_map[_asset][_currency] -= qte
+        
+        return assets_currencies_map
 
 
     def total_disposal_gains(self, year: int) -> float:
