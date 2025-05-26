@@ -11,12 +11,16 @@ import utils
 
 
 if __name__ == '__main__':
+
+    # rates = utils.get_conversion_rate(datetime(2025, 5, 6), 'USD')
+
     data = read_data_export('../patripy/ressources')
     #data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
 
     data = utils.filter_asset(data, portoflio.CRYPTO_ASSETS)
 
     portoflio = Portfolio(data)
+    pprint(portoflio.holdings())
 
     #portoflio.display_transactions()
 
@@ -31,6 +35,6 @@ if __name__ == '__main__':
     # portoflio.display_gains()
     #portoflio.display_holdings()
 
-    disposal_gains = portoflio._compute_disposal_gains_asset('SOL', '2024')
-    pprint(disposal_gains)
+    # disposal_gains = portoflio._compute_disposal_gains_asset('SOL', '2024')
+    # pprint(disposal_gains)
 
