@@ -3,9 +3,11 @@
 from glob import glob
 from os import path
 from typing import List, Optional, Union
-from datetime import datetime 
+from datetime import datetime, timezone
+import pytz
 
 import pandas as pd
+import yfinance as yf
 
 RATE_DATA_PATH = './data'
 
@@ -49,11 +51,21 @@ def get_conversion_rate(date: datetime, src_currency: str, dest_currency: str = 
     if src_currency.lower() == dest_currency.lower():
         return 1.0
 
-    dat_file = path.join(RATE_DATA_PATH, '-'.join([dest_currency.lower(), src_currency.lower()]) + '.csv')
+    dat_file = path.join(RATE_DATA_PATH, '-'.join([src_currency.lower(), dest_currency.lower()]) + '.csv')
     assert path.isfile(dat_file), 'ERROR: missing conversion rate file'
 
     data = pd.read_csv(dat_file, sep=',', index_col=0, parse_dates=True, date_format='%d/%m/%Y %H:%M:%S')
     return data[data.index.date == date.date()].iloc[0, 0]
 
 def get_market_value(asset: str, date: datetime) -> float:
-    return 0.0
+    ticker = yf.Ticker(asset)
+    hist = ticker.history(period='5y', interval='1d')
+
+    # Applying the UTC timezone to match DataFrame from yfinance PriceHistory
+    ticker_tz = ticker._get_ticker_tz(10)
+    assert isinstance(ticker_tz, str)
+    tz = pytz.timezone(ticker_tz)
+    date = tz.localize(date, is_dst=False)
+
+    value_price = hist.loc[date, 'Close']
+    return value_price

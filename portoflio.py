@@ -2,12 +2,14 @@
 
 from pprint import pprint 
 from datetime import datetime
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Union
 import pandas as pd
 
 import utils
 
 VALID_ACTIVITY = ['INVEST_ORDER_EXECUTED', 'INVEST_RECURRING_ORDER_EXECUTED']
+
 CRYPTO_ASSETS = [
     'SWQ',
     'ETH',
@@ -20,6 +22,18 @@ CRYPTO_ASSETS = [
     'BNT',
     'MAT',
 ]
+
+TICKER_MAPPING = {
+    'AAV': 'AAVE-USD',
+    'BNT': 'BNT-USD',
+    'DOT': 'DOT-USD',
+    'ETH': 'ETH-USD',
+    'MAT': 'MATIC-USD',
+    'MKR': 'MKR-USD',
+    'SOL': 'SOL-USD',
+    'XBT': 'BTC-USD',
+    'XRP': 'XRP-USD'
+}
 
 class Portfolio:
     def __init__(self, data: pd.DataFrame) -> None:
@@ -306,19 +320,18 @@ class Portfolio:
         values = 0.0
         for name, postition_qte in self.holdings().items():
             _asset, _currency = name.split('-')
-            market_price = utils.get_market_value(_asset, date)
+            market_price = utils.get_market_value(TICKER_MAPPING[_asset], date)
             rate = utils.get_conversion_rate(date, _currency)
 
             values += market_price * rate * postition_qte
 
         return values
 
-    def total_disposal_gains(self, year: int) -> float:
-
+    def total_disposal_gains(self, year: int, reduce: Optional[bool] = None) -> Union[float, List[float]]:
         year_data_mask = self._data['DATE'].dt.year == year
         sell_data_mask = self._data['BUY_SELL'] == 'SELL'
 
-        operations = self._data[year_data_mask and sell_data_mask]
+        operations = self._data[year_data_mask & sell_data_mask]
         raw_disposal_gains: List[float] = []
         for i, _ in operations.iterrows():
             operation_id = self._data.index.get_loc(i)
@@ -339,6 +352,6 @@ class Portfolio:
 
             raw_disposal_gains += [selling_price - portfolio_cost * selling_price / portfolio_value]
 
-        return sum(raw_disposal_gains)
+        return sum(raw_disposal_gains) if reduce else raw_disposal_gains
 
 
