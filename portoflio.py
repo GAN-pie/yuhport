@@ -21,13 +21,47 @@ CRYPTO_ASSETS = [
     'MAT',
 ]
 
-
 class Portfolio:
     def __init__(self, data: pd.DataFrame) -> None:
         self._data = utils.filter_activity(data, VALID_ACTIVITY)
 
-    def get_assets(self) -> List:
+    def get_assets(self) -> List[str]:
+        """
+        Give the assets list contained in the portfolio
+        Returns:
+            a list of assets
+        """
         return self._data['ASSET'].dropna().unique().tolist()
+
+    def holdings(self) -> Dict[str, int]:
+        """
+        Compute positions for every assets in their specific currency
+        Returns:
+            a Dict with <asset>-<currency> keys mapping to held shares quantities
+        """
+        assets_currencies_map: Dict[str, int] = {}
+        # Adding BUY operations
+        for grouping, group_data in self._data.groupby(['ASSET', 'DEBIT_CURRENCY']):
+            assert isinstance(grouping, tuple)
+            _asset, _currency = grouping
+            qte = group_data['QUANTITY'].sum()
+            key_string = "-".join([_asset, _currency])
+            if not key_string in assets_currencies_map:
+                assets_currencies_map[key_string] = qte
+            else:
+                assets_currencies_map[key_string] += qte
+        # Substract SELL operations
+        for grouping, group_data in self._data.groupby(['ASSET', 'CREDIT_CURRENCY']):
+            assert isinstance(grouping, tuple)
+            _asset, _currency = grouping
+            _asset, _currency = grouping
+            qte = group_data['QUANTITY'].sum()
+            key_string = "-".join([_asset, _currency])
+            if not key_string in assets_currencies_map:
+                assets_currencies_map[key_string] = -qte
+            else:
+                assets_currencies_map[key_string] -= qte
+        return assets_currencies_map
 
     def display_transactions(self, asset: Optional[str] = None) -> None:
         """Display all transactions related to the given asset if specified or all assets
@@ -283,26 +317,6 @@ class Portfolio:
         return values
 
 
-    def assets_currencies(self) -> Dict:
-        assets_currencies_map = {_asset: {} for _asset in self._data['ASSET'].dropna().unique().tolist()}
-        for grouping, group_data in self._data.groupby(['ASSET', 'DEBIT_CURRENCY']):
-            assert isinstance(grouping, tuple)
-            _asset, _currency = grouping
-            qte = group_data['QUANTITY'].sum()
-            if not _currency in assets_currencies_map[_asset]:
-                assets_currencies_map[_asset] = {_currency: qte}
-            else:
-                assets_currencies_map[_asset][_currency] += qte
-        for grouping, group_data in self._data.groupby(['ASSET', 'CREDIT_CURRENCY']):
-            assert isinstance(grouping, tuple)
-            _asset, _currency = grouping
-            qte = group_data['QUANTITY'].sum()
-            if not _currency in assets_currencies_map[_asset]:
-                assets_currencies_map[_asset] = {_currency: -qte}
-            else:
-                assets_currencies_map[_asset][_currency] -= qte
-        
-        return assets_currencies_map
 
 
     def total_disposal_gains(self, year: int) -> float:
