@@ -7,6 +7,7 @@ from datetime import datetime
 
 import pandas as pd
 
+RATE_DATA_PATH = './data'
 
 def read_data_export(folder: str) -> pd.DataFrame:
     exported_files: List = glob(path.join(folder, '*.CSV'))
@@ -44,14 +45,12 @@ def is_multicurrency(data: pd.DataFrame, asset: str) -> bool:
     currency_groups = asset_data.groupby('DEBIT_CURRENCY')
     return len(currency_groups) >= 1
 
-
-
-
-
-
-
 def get_conversion_rate(date: datetime, src_currency: str, dest_currency: Optional[str] = None) -> float:
-    return 1.0
+    dest_currency = dest_currency if dest_currency is not None else 'EUR'
+    dat_file = path.join(RATE_DATA_PATH, '-'.join([dest_currency.lower(), src_currency.lower()]) + '.csv')
+    assert path.isfile(dat_file), 'ERROR: missing conversion rate file'
+    data = pd.read_csv(dat_file, sep=',', index_col=0, parse_dates=True, date_format='%d/%m/%Y %H:%M:%S')
+    return data[data.index.date == date.date()].iloc[0, 0]
 
 def get_market_value(asset: str, date: datetime) -> float:
     return 0.0
