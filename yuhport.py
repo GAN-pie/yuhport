@@ -9,6 +9,8 @@ from utils import read_data_export
 from portoflio import Portfolio
 import utils
 
+import pandas as pd
+
 
 if __name__ == '__main__':
 
@@ -17,15 +19,16 @@ if __name__ == '__main__':
     # market = utils.get_market_value('BTC-USD', datetime(2024, 5, 26))
     # print(market)
 
-    data = read_data_export('../patripy/ressources')
+    data = read_data_export('./exports')
     # data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
-    data = utils.filter_asset(data, portoflio.CRYPTO_ASSETS)
+    # data = utils.filter_asset(data, portoflio.CRYPTO_ASSETS)
 
     portoflio = Portfolio(data)
-    pprint(portoflio.holdings())
+    df_holdings = pd.DataFrame.from_dict(portoflio.holdings(), orient='index')
+    print(df_holdings)
 
-    disposal_gains = portoflio.total_disposal_gains(2024)
-    print(disposal_gains)
+    df_disposals = pd.DataFrame.from_dict(portoflio.total_disposal_gains(2023), orient='index')
+    print(df_disposals)
 
 
 

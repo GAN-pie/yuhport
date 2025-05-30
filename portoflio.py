@@ -294,6 +294,29 @@ class Portfolio:
 
         return {curr: sum(gains) for curr, gains in currencies.items()}
 
+    def asset_cost(
+            self,
+            asset: str,
+            currency: Optional[str] = None,
+            averaged: Optional[bool] = True,
+            operation_id: Optional[int] = None) -> float:
+
+        if operation_id:
+            _portfolio = Portfolio(self._data.iloc[:operation_id])
+            return _portfolio.asset_cost(asset, currency, averaged)
+        cost = 0.0
+        qte = 0
+        for _, operation in self._data.iterrows():
+            if operation.BUY_SELL != 'BUY' or operation.DEBIT_CURRENCY != currency or operation.ASSET != asset:
+                continue
+            raw_operation_price = operation.PRICE_PER_UNIT * operation.QUANTITY
+            net_operation_price = raw_operation_price + operation.FEES_COMMISSION
+
+            rate = utils.get_conversion_rate(operation.DATE, operation.DEBIT_CURRENCY)
+            cost += net_operation_price * rate
+            qte += operation.QUANTITY
+
+        return cost / (qte if averaged else 1)
 
     def portfolio_cost(self, operation_id: Optional[int] = None) -> float:
         if operation_id:
@@ -327,12 +350,12 @@ class Portfolio:
 
         return values
 
-    def total_disposal_gains(self, year: int, reduce: Optional[bool] = None) -> Union[float, List[float]]:
+    def total_disposal_gains(self, year: int, reduce: Optional[bool] = None) -> Union[float, Dict]:
         year_data_mask = self._data['DATE'].dt.year == year
         sell_data_mask = self._data['BUY_SELL'] == 'SELL'
 
         operations = self._data[year_data_mask & sell_data_mask]
-        raw_disposal_gains: List[float] = []
+        raw_disposal_gains: Dict[str, List[float]] = {}
         for i, _ in operations.iterrows():
             operation_id = self._data.index.get_loc(i)
             assert isinstance(operation_id, int), f'{operation_id} must be int, not {type(operation_id)}'
@@ -342,16 +365,28 @@ class Portfolio:
             fees = self._data.iloc[operation_id].FEES_COMMISSION
             currency = self._data.iloc[operation_id].CREDIT_CURRENCY
             date = self._data.iloc[operation_id].DATE
+            asset = self._data.iloc[operation_id].ASSET
 
             rate = utils.get_conversion_rate(date, currency)
 
             selling_price = (unit_price * quantity - fees) * rate
+            disposal_gain: float
+            if asset is CRYPTO_ASSETS:
+                portfolio_cost = self.portfolio_cost(operation_id)
+                portfolio_value = self.portfolio_value(operation_id, date)
+                disposal_gain = selling_price - portfolio_cost * selling_price / portfolio_value
+            else:
+                disposal_gain = selling_price - self.asset_cost(asset, currency, True, operation_id) * quantity
+           
+            _asset = "-".join([asset, currency])
 
-            portfolio_cost = self.portfolio_cost(operation_id)
-            portfolio_value = self.portfolio_value(operation_id, date)
+            if raw_disposal_gains.get(_asset):
+                raw_disposal_gains[_asset] += [disposal_gain]
+            else:
+                raw_disposal_gains[_asset] = [disposal_gain]
 
-            raw_disposal_gains += [selling_price - portfolio_cost * selling_price / portfolio_value]
-
-        return sum(raw_disposal_gains) if reduce else raw_disposal_gains
-
+        if reduce:
+            net_value = sum([sum(__asset_disposals) for __asset_disposals in raw_disposal_gains.values()])
+            return net_value
+        return raw_disposal_gains
 
