@@ -300,7 +300,16 @@ class Portfolio:
             currency: Optional[str] = None,
             averaged: Optional[bool] = True,
             operation_id: Optional[int] = None) -> float:
-
+        """
+        Compute the (averaged) acquisition cost of the asset in the given currency, at the time before operation (if specified)
+        Args:
+            - asset (str): specifies the asset
+            - currency (str): the currency of the asset (for multicurrency assets)
+            - averaged (bool): whether or not to average acquisition costs, default is True
+            - operation_id (int): integer-based index of the inner DataFrame
+        Return:
+            a float refering to acquisition cost
+        """
         if operation_id:
             _portfolio = Portfolio(self._data.iloc[:operation_id])
             return _portfolio.asset_cost(asset, currency, averaged)
@@ -319,6 +328,13 @@ class Portfolio:
         return cost / (qte if averaged else 1)
 
     def portfolio_cost(self, operation_id: Optional[int] = None) -> float:
+        """
+        Compute the whole portfolio acquisition costs before the given operation (if specified)
+        Args:
+            - operation_id (int): integer-based index of the inner DataFrame
+        Return:
+            a float denoting the total costs of portfolio (including fees)
+        """
         if operation_id:
             _portfolio = Portfolio(self._data.iloc[:operation_id])
             return _portfolio.portfolio_cost()
@@ -335,6 +351,14 @@ class Portfolio:
         return cost
 
     def portfolio_value(self, operation_id: Optional[int] = None, date: Optional[datetime] = None) -> float:
+        """
+        Compute the whole portfolio value at the time before the given operation (if specified)
+        Args:
+            - operation_id (int): integer-based index of the inner DataFrame
+            - date (datetime): the date of reference
+        Return:
+            a float denoting the value of the portfolio
+        """
         date = date if date is not None else datetime.today()
         assert isinstance(date, datetime)
         if operation_id:
@@ -351,6 +375,14 @@ class Portfolio:
         return values
 
     def total_disposal_gains(self, year: int, reduce: Optional[bool] = None) -> Union[float, Dict]:
+        """
+        The function calculates the total disposal gains of the year.
+        Args:
+            - year (int): an integer specifying the year of reference
+            - reduce (bool): whether or not to return a single net disposal gain or raw individual gains
+        Return:
+            a dictionary containing raw disposal gains, or a single float if reduce is True
+        """
         year_data_mask = self._data['DATE'].dt.year == year
         sell_data_mask = self._data['BUY_SELL'] == 'SELL'
 
