@@ -13,15 +13,17 @@ import pandas as pd
 
 
 if __name__ == '__main__':
-
     data = read_data_export('./exports')
-    # data = utils.filter_timerange(data, datetime(2022, 1, 1), datetime(2023, 12, 31))
-    # data = utils.filter_asset(data, portoflio.CRYPTO_ASSETS)
+
+    years = [2022, 2023, 2024]
+    for y in years:
+        _data = utils.filter_timerange(data, datetime(1999, 1, 1), datetime(y, 12, 31))
+        _portfolio = Portfolio(_data)
+        _disposals = pd.DataFrame.from_dict(_portfolio.total_disposal_gains(y), orient='index')
+        print(f'{y} disposal', _disposals)
+        del _data, _portfolio, _disposals
 
     portoflio = Portfolio(data)
     df_holdings = pd.DataFrame.from_dict(portoflio.holdings(), orient='index')
-    print(df_holdings)
-
-    df_disposals = pd.DataFrame.from_dict(portoflio.total_disposal_gains(2023), orient='index')
-    print(df_disposals)
+    print('Portfolio holdings', df_holdings)
 
