@@ -33,6 +33,7 @@ def read_data_export(folder: str) -> pd.DataFrame:
     data.sort_values(by='DATE', inplace=True)
     data.columns = data.columns.str.replace(' ', '_')
     data.columns = data.columns.str.replace('/', '_')
+    data.reset_index(drop=True, inplace=True)
     return data
 
 def filter_activity(data: pd.DataFrame, activity: Union[str, List]) -> pd.DataFrame:
