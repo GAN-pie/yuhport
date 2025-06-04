@@ -2,9 +2,8 @@
 
 from glob import glob
 from os import path
-from typing import List, Optional, Union
-from datetime import datetime, timezone
-from numpy import isin
+from typing import List, Optional, Union, Dict
+from datetime import datetime
 import pytz
 
 import pandas as pd
@@ -134,3 +133,36 @@ def get_market_value(asset: str, date: datetime) -> float:
 
     value_price = hist.loc[date, 'Close']
     return value_price
+
+def display_disposals(disposals: Dict, header: Optional[bool] = None) -> None:
+    """
+    Display disposal gains
+    Args:
+        - disposals (dict): a Dict of disposals as returned by Portfolio.total_disposal_gains()
+    Return:
+        None
+    """
+    header_string = '{0:>10s} {1:>8s} {2:>8s} {3:>12s} {4:>12s} {5:>8s} {6:>12s} {7:>18s} {8:>18s}'.format(
+            'DATE', 'ASSET', 'CURRENCY', 'QUANTITY', 'PRICE(€)', 'FEES(€)', 'UNIT_COST(€)', 'PORTFOLIO_COST(€)', 'PORTOLIO_VALUE(€)')
+    if header:
+        print(header_string)
+    for _asset, _asset_disposals in disposals.items():
+        asset, currency = _asset.split('-')
+        for disp in _asset_disposals:
+            rate = disp['rate']
+            pf_cost = disp['portfolio_cost'] or 0.0
+            pf_value = disp['portfolio_value'] or 0.0
+            disposal_string = '{0:>10s} {1:>8s} {2:>8s} {3:>12f} {4:>12f} {5:>8f} {6:>12f} {7:>18.2f} {8:>18.2f}'.format(
+                str(disp['date'].date()),
+                asset,
+                currency,
+                disp['quantity'],
+                disp['unit_price']*rate,
+                disp['fees']*rate,
+                disp['avg_cost'],
+                pf_cost,
+                pf_value
+            )
+
+            print(disposal_string)
+        

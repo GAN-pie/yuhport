@@ -1,8 +1,6 @@
 #coding: utf-8
 
-from pprint import pprint 
 from datetime import datetime
-import re
 from typing import Dict, List, Optional, Union
 import pandas as pd
 
@@ -367,7 +365,10 @@ class Portfolio:
         values = 0.0
         for name, postition_qte in self.holdings().items():
             _asset, _currency = name.split('-')
-            market_price = utils.get_market_value(TICKER_MAPPING[_asset], date)
+            try:
+                market_price = utils.get_market_value(TICKER_MAPPING[_asset], date)
+            except KeyError:
+                return 0.0
             rate = utils.get_conversion_rate(date, _currency)
 
             values += market_price * rate * postition_qte
@@ -387,7 +388,8 @@ class Portfolio:
         sell_data_mask = self._data['BUY_SELL'] == 'SELL'
 
         operations = self._data[year_data_mask & sell_data_mask]
-        raw_disposal_gains: Dict[str, List[float]] = {}
+        # raw_disposal_gains: Dict[str, List[float]] = {}
+        raw_disposal_gains: Dict[str, List[Dict]] = {}
         for i, _ in operations.iterrows():
             operation_id = self._data.index.get_loc(i)
             assert isinstance(operation_id, int), f'{operation_id} must be int, not {type(operation_id)}'
@@ -399,26 +401,54 @@ class Portfolio:
             date = self._data.iloc[operation_id].DATE
             asset = self._data.iloc[operation_id].ASSET
 
+            _asset = "-".join([asset, currency])
+
             rate = utils.get_conversion_rate(date, currency)
 
             selling_price = (unit_price * quantity - fees) * rate
             disposal_gain: float
-            if asset is CRYPTO_ASSETS:
+            avg_cost = 0.0
+            if asset in CRYPTO_ASSETS:
+                _portfolio = Portfolio(utils.filter_asset(self._data, CRYPTO_ASSETS))
+                portfolio_cost = _portfolio.portfolio_cost(operation_id)
+                portfolio_value = _portfolio.portfolio_value(operation_id, date)
+                disposal_gain = selling_price - portfolio_cost * selling_price / portfolio_value
+                avg_cost = _portfolio.asset_cost(asset, currency, True, operation_id)
+            else:
+                avg_cost = self.asset_cost(asset, currency, True, operation_id)
                 portfolio_cost = self.portfolio_cost(operation_id)
                 portfolio_value = self.portfolio_value(operation_id, date)
-                disposal_gain = selling_price - portfolio_cost * selling_price / portfolio_value
-            else:
-                disposal_gain = selling_price - self.asset_cost(asset, currency, True, operation_id) * quantity
+                disposal_gain = selling_price - avg_cost * quantity
            
-            _asset = "-".join([asset, currency])
 
             if raw_disposal_gains.get(_asset):
-                raw_disposal_gains[_asset] += [disposal_gain]
+                raw_disposal_gains[_asset] += [{
+                    'date': date,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'fees': fees,
+                    'avg_cost': avg_cost,
+                    'portfolio_cost': portfolio_cost,
+                    'portfolio_value': portfolio_value,
+                    'disposal_gain': disposal_gain,
+                    'rate': rate
+                }]
             else:
-                raw_disposal_gains[_asset] = [disposal_gain]
+                raw_disposal_gains[_asset] = [{
+                    'date': date,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'fees': fees,
+                    'avg_cost': avg_cost,
+                    'portfolio_cost': portfolio_cost,
+                    'portfolio_value': portfolio_value,
+                    'disposal_gain': disposal_gain,
+                    'rate': rate
+                }]
+
 
         if reduce:
-            net_value = sum([sum(__asset_disposals) for __asset_disposals in raw_disposal_gains.values()])
+            net_value = sum([sum(_asset_disposals['disposal_gain']) for _asset_disposals in raw_disposal_gains.values()])
             return net_value
         return raw_disposal_gains
 
