@@ -1,8 +1,10 @@
 #coding: utf-8
 
+import math
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 import pandas as pd
+import numpy as np
 
 import utils
 
@@ -73,7 +75,8 @@ class Portfolio:
                 assets_currencies_map[key_string] = -qte
             else:
                 assets_currencies_map[key_string] -= qte
-        return assets_currencies_map
+        clip_fn = lambda x: 0.0 if 0.0 + abs(x) < 1e-8 else x
+        return {k: clip_fn(x) for k, x in assets_currencies_map.items()}
 
     def display_transactions(self, asset: Optional[str] = None) -> None:
         """Display all transactions related to the given asset if specified or all assets
@@ -364,6 +367,7 @@ class Portfolio:
             return _portfolio.portfolio_value(operation_id=None, date=date)
         values = 0.0
         for name, postition_qte in self.holdings().items():
+            assert isinstance(postition_qte, float), f'postition_qte must be a float'
             _asset, _currency = name.split('-')
             try:
                 market_price = utils.get_market_value(TICKER_MAPPING[_asset], date)
